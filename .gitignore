@@ -1,0 +1,146 @@
+# ----------------------------
+# OS / Editor cruft
+# ----------------------------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.code-workspace
+
+# ----------------------------
+# Python & build artifacts
+# ----------------------------
+__pycache__/
+*.py[cod]
+*.so
+*.pyd
+*.pyo
+*.pkl
+*.joblib
+
+build/
+dist/
+*.egg-info/
+.eggs/
+*.whl
+
+# Virtual environments
+.venv/
+venv/
+myenv/
+env/
+ENV/
+.ipynb_checkpoints/
+.python-version
+
+# Caches
+.cache/
+.mypy_cache/
+.pytype/
+pytestdebug.log
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ----------------------------
+# Streamlit
+# ----------------------------
+.streamlit/secrets.toml
+.streamlit/credentials.toml
+# (Keep config.toml if you want app defaults committed)
+# .streamlit/config.toml
+
+# Streamlit logs/runtime
+.streamlit/logs/
+.streamlit/cache/
+.streamlit/artifacts/
+.streamlit/state/
+
+# ----------------------------
+# Environment / Secrets
+# ----------------------------
+.env
+.env.*
+*.env
+*.secret
+*.secrets
+
+# ----------------------------
+# Notebooks
+# ----------------------------
+# Keep notebooks themselves, just ignore checkpoints:
+.ipynb_checkpoints/
+
+# ----------------------------
+# ML Artifacts (models, checkpoints, tensorboard)
+# ----------------------------
+# Common model formats
+*.pt
+*.pth
+*.onnx
+*.h5
+*.ckpt
+*.ckpt.*
+*.tflite
+*.pb
+
+# TensorBoard logs
+events.out.tfevents.*
+.tensorboard-info/
+
+# ----------------------------
+# Data folders (keep empty dirs with .gitkeep)
+# ----------------------------
+data/
+!data/.gitkeep
+
+datasets/
+!datasets/.gitkeep
+
+models/
+!models/.gitkeep
+
+checkpoints/
+!checkpoints/.gitkeep
+
+outputs/
+!outputs/.gitkeep
+
+# Large interim/processed data
+interim/
+processed/
+raw/
+
+# ----------------------------
+# Logs & temp
+# ----------------------------
+logs/
+*.log
+tmp/
+temp/
+*.tmp
+
+# ----------------------------
+# Optional: DVC users
+# (Ignore data, but keep .dvc metadata tracked)
+# ----------------------------
+#.dvc/
+#*.dvc
+#.dvcignore
+#    (Creates or updates .gitignore)
+@"
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ipynb_checkpoints/
+
+# Virtual environments
+myenv/
+.venv/
+venv/
+
+# OS/editor
+.DS_Store
+Thumbs.db
+"@ | Out-File -Encoding utf8 .gitignore
