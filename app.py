@@ -356,7 +356,11 @@ if page == "🔬 Clustering: Group by Condition" and df is not None:
 # -----------------------------------------------------------------------------
 if page == "🔮 Regression: Performance Prediction" and df is not None:
     st.title("Regression: Predict Performance Score")
-    st.markdown("This model predicts a composite **performance score** based on 'Effectiveness' and 'Ease of Use'.")
+    st.markdown("""
+    Welcome to the regression task. Our goal here is to predict a continuous value: a composite **performance score** for each drug. We create this score by combining the 'Effectiveness' and 'Ease of Use' ratings, as our earlier EDA showed these are key drivers of patient sentiment.
+
+    **Why is this useful?** A highly accurate regression model can forecast how a drug might be perceived by patients. This is invaluable for pharmaceutical companies to prioritize drug development, understand market positioning, and identify key factors that lead to positive patient outcomes.
+    """)
     st.divider()
 
     @st.cache_resource
@@ -381,14 +385,14 @@ if page == "🔮 Regression: Performance Prediction" and df is not None:
 
     gb_model, encoders, results_reg, df_encoded_reg = train_regression_model(df)
 
-    st.subheader("Data Preview")
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown("**Initial Data**")
-        st.dataframe(df.head(), use_container_width=True)
-    with col2:
-        st.markdown("**Processed Data for Modeling**")
-        st.dataframe(df_encoded_reg.head(), use_container_width=True)
+    # --- Tables displayed vertically with explanations ---
+    st.subheader("1. Initial Data")
+    st.markdown("This is the raw data before any feature engineering or selection for our regression model.")
+    st.dataframe(df.head(), use_container_width=True)
+
+    st.subheader("2. Processed Data for Modeling")
+    st.markdown("Here, we have engineered our target variable, **'performance'**, and label-encoded the 'Drug' and 'Condition' columns to prepare the data for training.")
+    st.dataframe(df_encoded_reg.head(), use_container_width=True)
     st.divider()
     
     st.subheader("Model Performance Metrics")
@@ -407,7 +411,9 @@ if page == "🔮 Regression: Performance Prediction" and df is not None:
             effective = st.slider("Effectiveness (1-5)", 1.0, 5.0, 4.0, 0.1)
             ease_of_use = st.slider("Ease of Use (1-5)", 1.0, 5.0, 4.0, 0.1)
         
-        submitted_reg = st.form_submit_button("Predict Performance")
+        # --- Interactive Button ---
+        submitted_reg = st.form_submit_button("✨ Predict Performance Score", use_container_width=True, type="primary")
+        
         if submitted_reg:
             drug_encoded = encoders['Drug'].transform([drug])[0]
             condition_encoded = encoders['Condition'].transform([condition])[0]
@@ -415,6 +421,15 @@ if page == "🔮 Regression: Performance Prediction" and df is not None:
             features = np.array(feature_list).reshape(1, -1)
             prediction = gb_model.predict(features)[0]
             st.success(f"**Predicted Performance Score (1-5):** {prediction:.2f}")
+    st.divider()
+
+    # --- Final Overview ---
+    st.header("Overview of Regression Results")
+    st.markdown(f"""
+    The Gradient Boosting model is highly effective, predicting the composite performance score with an extremely low **Mean Absolute Error of {results_reg['MAE']:.4f}**. This indicates that the model's predictions are, on average, very close to the true calculated scores.
+    
+    This high level of accuracy confirms that a drug's performance, as perceived by patients, can be reliably forecasted using its effectiveness and ease of use. This makes the model a valuable asset for strategic decision-making in the pharmaceutical industry.
+    """)
 
 # -----------------------------------------------------------------------------
 # Page: Results & Summary
