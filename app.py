@@ -449,19 +449,13 @@ if page == "📊 Results & Summary":
             st.subheader("🤖 Classification")
             st.metric(label="Test Accuracy", value=f"{results_clf_summary['Accuracy']*100:.2f}%")
             st.markdown("**Use Case**: Automatically categorize patient feedback to route support inquiries, identify condition-specific trends, and personalize patient communication.")
-        
+
         with col2:
             st.subheader("🔬 Clustering")
             st.metric(label="Adjusted Rand Index", value="1.00")
             st.markdown("**Use Case**: Identify distinct patient archetypes or market segments based on feedback patterns, even without explicit labels, to tailor marketing and educational materials.")
-            
+
         with col3:
             st.subheader("🔮 Regression")
             st.metric(label="Mean Absolute Error", value=f"{results_reg_summary['MAE']:.4f}")
             st.markdown("**Use Case**: Forecast a new drug's potential market performance based on clinical trial data for effectiveness and ease of use, guiding development and managing expectations.")
-
-# -----------------------------------------------------------------------------
-# Fallback
-# -----------------------------------------------------------------------------
-if df is None and page != "🏠 Overview":
-    st.warning("Dataset could not be loaded. Please check your Kaggle credentials/connectivity and try again.")
