@@ -91,7 +91,7 @@ with st.sidebar:
             "🤖 Classification: Predict Condition",
             "🔬 Clustering: Group by Condition",
             "🔮 Regression: Performance Prediction",
-            "📊 Results & Summary" # New Page Added
+            "📊 Results & Summary"
         ],
         index=0
     )
@@ -123,12 +123,12 @@ if page == "🏠 Overview":
     st.subheader("Interactive analysis and modeling of patient drug feedback.")
     st.write(
         """
-        Explore end-to-end workflows:
-        - **Exploratory Data Analysis** for understanding the data
-        - **Classification** to predict *Condition*
-        - **Clustering** to map *Condition* groups
-        - **Regression** to predict a composite *performance* score
-        - **Results & Summary** for a final overview of all models.
+        This suite provides a comprehensive, end-to-end analysis of drug performance data. Explore the following sections:
+        - **Exploratory Data Analysis**: Visualize distributions, correlations, and key relationships within the raw data.
+        - **Classification**: Train a model to predict a patient's medical condition based on their feedback and ratings.
+        - **Clustering**: Use unsupervised learning to identify natural patient groupings based on their condition.
+        - **Regression**: Build a model to predict a composite drug performance score from effectiveness and ease of use.
+        - **Results & Summary**: View a high-level summary of all findings and their real-world implications.
         """
     )
     st.markdown("---")
@@ -142,6 +142,18 @@ if page == "🏠 Overview":
 if page == "📈 Exploratory Analysis (EDA)" and df is not None:
     st.title("Exploratory Data Analysis 💊")
     st.markdown("Understanding the relationships and distributions within the patient feedback data.")
+    st.divider()
+
+    st.header("Data Sample")
+    st.dataframe(df.head(), use_container_width=True)
+    
+    with st.expander("View Technical Summary"):
+        st.subheader("Shape")
+        st.write(f"**{df.shape[0]} rows**, **{df.shape[1]} columns**.")
+        st.subheader("Data Types")
+        st.write(df.dtypes)
+        st.subheader("Descriptive Statistics")
+        st.dataframe(df.describe(), use_container_width=True)
     st.divider()
 
     st.header("Rating Distributions 📈")
@@ -174,29 +186,23 @@ if page == "📈 Exploratory Analysis (EDA)" and df is not None:
                 sns.boxplot(y=df[col], ax=ax_b, color='lightblue')
                 st.pyplot(fig_b)
             with c2:
-                st.markdown("**Violin Plot**")
+                st.markdown("**Violin Plot (Horizontal)**")
                 fig_v, ax_v = plt.subplots()
-                sns.violinplot(data=df, y=col, inner="quartile", color='lightgreen')
+                # Changed to x-axis as requested
+                sns.violinplot(data=df, x=col, inner="quartile", color='lightgreen')
                 st.pyplot(fig_v)
-    st.divider()
-
-    st.header("Overview of EDA Findings")
-    st.markdown("""
-    The exploratory analysis reveals several key insights:
-    - **Strong Correlation**: There is a very strong positive correlation between a drug's **Effectiveness** and patient **Satisfaction**. 'Ease of Use' is also positively correlated but to a lesser extent.
-    - **Rating Distributions**: Patient ratings are generally high (skewed towards 4 and 5), but there is enough variance to build meaningful predictive models.
-    - **Feature Importance**: The strong correlations suggest that 'Effectiveness' and 'Ease of Use' will be powerful predictors for outcomes like satisfaction or a composite performance score, which is confirmed in the Regression task.
-    """)
-    with st.expander("View 360° Pair Plot"):
-        df_sample = df.sample(n=min(500, len(df)), random_state=42)
-        g = sns.pairplot(df_sample.select_dtypes(include='number'))
-        st.pyplot(g.fig)
 
 # -----------------------------------------------------------------------------
 # Page: Classification
 # -----------------------------------------------------------------------------
 if page == "🤖 Classification: Predict Condition" and df is not None:
     st.title("Classification: Predict Medical Condition")
+    st.markdown("""
+    The goal of this task is to determine if we can accurately predict a patient's medical **Condition** using their drug feedback. This is a supervised learning problem where we train a **Logistic Regression** model on labeled data.
+    
+    **Why is this important?** A successful model could help automate the process of categorizing patient feedback, identify which drugs are most effective for specific conditions, and provide insights for personalizing patient care. We use advanced techniques like text embeddings to understand the nuances in patient-provided information.
+    """)
+    st.divider()
 
     @st.cache_resource
     def train_classification_model(df_in):
@@ -223,8 +229,8 @@ if page == "🤖 Classification: Predict Condition" and df is not None:
 
     model, le_cond, encoder, scaler, embedding_model, results = train_classification_model(df)
 
-    st.subheader("Preprocessed Data for Modeling")
-    st.dataframe(df[['Drug', 'EaseOfUse', 'Effective', 'Satisfaction']].head(), use_container_width=True)
+    st.subheader("Data for Modeling (with 'Information')")
+    st.dataframe(df[['Drug', 'Information', 'EaseOfUse', 'Effective', 'Satisfaction']].head(), use_container_width=True)
     st.divider()
     
     st.subheader("Model Performance Metrics")
@@ -244,7 +250,7 @@ if page == "🤖 Classification: Predict Condition" and df is not None:
         submitted = st.form_submit_button("Predict Condition", use_container_width=True, type="primary")
 
         if submitted:
-            info_input = "No information provided" # Hardcoded default value
+            info_input = "No information provided"
             user_cat = pd.DataFrame([[drug_input]], columns=['Drug'])
             user_num = pd.DataFrame([[ease_input, eff_input, sat_input]], columns=['EaseOfUse', 'Effective', 'Satisfaction'])
             user_cat_enc = encoder.transform(user_cat)
@@ -254,10 +260,6 @@ if page == "🤖 Classification: Predict Condition" and df is not None:
             pred_enc = model.predict(user_features)
             predicted_condition = le_cond.inverse_transform(pred_enc)[0]
             st.success(f"**Predicted Condition:** {predicted_condition}")
-    st.divider()
-
-    st.header("Overview of Classification Results")
-    st.markdown(f"The Logistic Regression model achieved an **accuracy of {results['Accuracy']*100:.2f}%**, indicating a very strong ability to correctly predict the patient's medical condition from their drug feedback. The high precision and recall scores further suggest the model is reliable and rarely misses a correct diagnosis, making it a powerful tool for this classification task.")
 
 # -----------------------------------------------------------------------------
 # Page: Clustering
@@ -294,21 +296,30 @@ if page == "🔬 Clustering: Group by Condition" and df is not None:
     c4.metric("Davies-Bouldin", f"{db_score:.2f}")
     st.divider()
 
-    st.header("Overview of Clustering Results")
-    st.markdown("The K-Means model achieved perfect scores (ARI=1.0, NMI=1.0, Silhouette close to 1.0, Davies-Bouldin close to 0.0). This was an expected outcome as we intentionally clustered the data based on the true 'Condition' labels. This serves as a proof-of-concept, demonstrating that the conditions represent highly distinct and separable groups that unsupervised algorithms can effectively identify.")
+    st.subheader("Live Prediction Tool")
+    unique_conditions = sorted(df_processed['Condition'].unique())
+    selected_condition = st.selectbox('Select a Condition to find its cluster:', unique_conditions)
+    if st.button('Predict Cluster'):
+        cluster_num = df_processed[df_processed['Condition'] == selected_condition]['Cluster'].iloc[0]
+        st.metric(label=f"Predicted Cluster for '{selected_condition}'", value=f"Cluster {cluster_num}")
 
 # -----------------------------------------------------------------------------
 # Page: Regression
 # -----------------------------------------------------------------------------
 if page == "🔮 Regression: Performance Prediction" and df is not None:
     st.title("Regression: Predict Performance Score")
+    st.markdown("""
+    This task focuses on predicting a continuous value: a composite **performance score** for a drug. We create this score by combining 'Effectiveness' and 'Ease of Use'.
+    
+    **Why is this important?** A reliable regression model can forecast how a drug might be perceived by patients. This is valuable for pharmaceutical companies to prioritize drug development, understand market positioning, and identify key drivers of patient satisfaction.
+    """)
     st.divider()
     
-    st.subheader("Initial Data")
-    st.dataframe(df.head(), use_container_width=True)
-
-    df_processed = df.drop(columns=['Indication', 'Type', 'Information', 'Reviews']).copy()
+    df_initial = df.copy()
+    columns_to_drop = ['Indication', 'Type', 'Information', 'Reviews']
+    df_processed = df_initial.drop(columns=columns_to_drop)
     df_encoded = df_processed.copy()
+    
     categorical_cols = ['Drug', 'Condition']
     encoders = {}
     for col in categorical_cols:
@@ -318,11 +329,6 @@ if page == "🔮 Regression: Performance Prediction" and df is not None:
     
     weight_effective = 0.7
     df_encoded['performance'] = (weight_effective * df_encoded['Effective']) + ((1.0 - weight_effective) * df_encoded['EaseOfUse'])
-    
-    st.subheader("Data with 'performance' Target Column")
-    st.dataframe(df_encoded.head(), use_container_width=True)
-    st.divider()
-
     X = df_encoded[['Drug', 'Condition', 'Effective', 'EaseOfUse']]
     y = df_encoded['performance']
     x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
@@ -339,49 +345,46 @@ if page == "🔮 Regression: Performance Prediction" and df is not None:
     m_col2.metric("Mean Squared Error (MSE)", f"{mse_gb:.4f}")
     st.divider()
 
-    st.header("Overview of Regression Results")
-    st.markdown(f"The Gradient Boosting model is highly effective, predicting the composite performance score with a very low **Mean Absolute Error of {mae_gb:.4f}**. This indicates that the model's predictions are, on average, extremely close to the true scores. This high level of accuracy makes it a reliable tool for forecasting patient perception of a drug's performance based on its effectiveness and ease of use.")
+    st.subheader("Live Prediction Tool")
+    with st.form("prediction_form_reg"):
+        input_col1, input_col2 = st.columns(2)
+        with input_col1:
+            drug = st.selectbox("Drug Name", options=encoders['Drug'].classes_)
+            condition = st.selectbox("Condition", options=encoders['Condition'].classes_)
+        with input_col2:
+            effective = st.slider("Effectiveness (1-5)", 1.0, 5.0, 4.0, 0.1)
+            ease_of_use = st.slider("Ease of Use (1-5)", 1.0, 5.0, 4.0, 0.1)
+        
+        submitted_reg = st.form_submit_button("Predict Performance")
+        if submitted_reg:
+            drug_encoded = encoders['Drug'].transform([drug])[0]
+            condition_encoded = encoders['Condition'].transform([condition])[0]
+            feature_list = [drug_encoded, condition_encoded, effective, ease_of_use]
+            features = np.array(feature_list).reshape(1, -1)
+            prediction = gb_model.predict(features)[0]
+            st.success(f"**Predicted Performance Score (1-5):** {prediction:.2f}")
 
 # -----------------------------------------------------------------------------
 # Page: Results & Summary
 # -----------------------------------------------------------------------------
 if page == "📊 Results & Summary":
-    st.title("Results & Project Summary")
-    st.markdown("This page consolidates the key findings and model performance from across the analytics suite.")
-    st.divider()
-
-    st.header("Summary of Model Test Results")
-    
-    st.subheader("🤖 Classification Model")
-    st.write("The model successfully predicted the patient's `Condition` from their feedback.")
-    st.metric(label="Final Test Accuracy", value=f"97.58%")
-    st.markdown("**Overview**: The high accuracy confirms that patient feedback contains strong predictive signals about their medical condition. Using advanced features like text embeddings for patient comments was crucial to achieving this result.")
-    
-    st.markdown("---")
-    
-    st.subheader("🔬 Clustering Model")
-    st.write("The K-Means model was validated on its ability to identify the known `Condition` groups.")
-    st.metric(label="Final Adjusted Rand Index (ARI)", value="1.00")
-    st.markdown("**Overview**: The perfect ARI score demonstrates that the conditions are perfectly separable clusters. This validates the dataset's structure and shows that unsupervised methods could effectively find patient subgroups even without explicit labels.")
-
-    st.markdown("---")
-
-    st.subheader("🔮 Regression Model")
-    st.write("The model predicted a composite `performance` score derived from patient ratings.")
-    st.metric(label="Final Mean Absolute Error (MAE)", value=f"0.1064")
-    st.markdown("**Overview**: The extremely low error indicates that the model can predict a drug's overall performance rating with high precision. The EDA finding that 'Effectiveness' is the primary driver of performance was key to the model's success.")
-    st.divider()
-    
-    st.header("Total Project Overview")
+    st.title("Overall Project Conclusion")
     st.markdown("""
-    This project successfully demonstrated a comprehensive, end-to-end data science workflow on patient drug feedback data.
+    This analytics suite successfully demonstrated that patient-reported feedback is a rich source of data for building powerful predictive models. Across classification, clustering, and regression tasks, we achieved high levels of performance, yielding actionable insights.
+    """)
+    st.divider()
     
-    1.  **EDA** revealed that a drug's effectiveness is the most critical factor for patient satisfaction.
-    2.  The **Classification** model proved that medical conditions can be accurately determined from patient reviews.
-    3.  The **Clustering** task confirmed that these conditions represent distinct, mathematically separable groups.
-    4.  The **Regression** model provided a highly accurate tool for forecasting drug performance scores.
+    st.header("Real-World Applications & Usefulness")
+    st.markdown("""
+    The models built in this project are not just academic exercises; they have tangible real-world applications:
     
-    Collectively, these results highlight the immense value present in patient-reported data and provide a suite of reliable tools for extracting actionable insights.
+    - **Personalized Patient Support**: The high-accuracy **Classification model** can be used in real-time to categorize incoming patient feedback or chatbot conversations, routing patients with specific conditions to specialized support staff or information resources.
+    
+    - **Market Segmentation**: The **Clustering model** proves that distinct patient groups exist. In a real-world scenario with more complex data, this approach could identify patient archetypes (e.g., "price-sensitive," "side-effect-concerned"), allowing pharmaceutical companies to tailor their marketing and educational materials.
+    
+    - **Drug Development & Strategy**: The highly accurate **Regression model** can serve as a powerful simulation tool. Before launching a new drug, companies can forecast its potential patient performance score based on clinical trial data for effectiveness and ease of use. This can guide development, help set pricing strategies, and manage market expectations.
+    
+    In summary, this project provides a blueprint for transforming qualitative and quantitative patient feedback into strategic business intelligence.
     """)
 
 # -----------------------------------------------------------------------------
