@@ -25,6 +25,10 @@ from sklearn.metrics import (
     silhouette_score, davies_bouldin_score, mean_absolute_error, mean_squared_error
 )
 from sklearn.ensemble import GradientBoostingRegressor
+# New imports for embeddings and similarity calculation
+from sentence_transformers import SentenceTransformer
+from sklearn.metrics.pairwise import cosine_similarity
+
 
 # -----------------------------------------------------------------------------
 # Page Config (first Streamlit call)
@@ -199,7 +203,7 @@ if page == "🏠 Overview":
         """
         Explore end-to-end workflows:
         - **Exploratory Data Analysis** for understanding the data  
-        - **Classification** to predict *Condition*  
+        - **Classification** to predict *Condition*
         - **Clustering** to map *Condition* groups  
         - **Regression** to predict a composite *performance* score
         
@@ -343,42 +347,87 @@ if page == "📈 Exploratory Analysis (EDA)" and df is not None:
     download_df(df_eda, "eda_filtered_data")
 
 # -----------------------------------------------------------------------------
-# Page: Classification — Predict Condition (core logic preserved)
+# Page: Classification — Predict Condition (LOGIC UPDATED)
 # -----------------------------------------------------------------------------
 if page == "🤖 Classification: Predict Condition" and df is not None:
-    st.title("Predicting the Condition")
+    st.title("Predicting the Condition with Text Embeddings")
+    
+    # --- New, Detailed Overview ---
     st.markdown("""
-    Logistic Regression with label encoding (target), one-hot encoding (categoricals), and scaling (numerics).
+    ### Overview of the Classification Task
+    
+    The primary goal of this section is to predict a patient's medical **Condition** based on their feedback about a drug. We use a **Logistic Regression** model trained on a combination of user-provided data:
+    
+    - **Numerical Ratings**: Scores for 'Ease of Use', 'Effective', and 'Satisfaction'.
+    - **Categorical Data**: The specific 'Drug' used.
+    - **Text Data**: The 'Information' provided alongside the drug.
+    
+    A key feature of this model is its use of **Sentence Embeddings** to process the 'Information' text. Instead of treating text as simple categories, this advanced technique converts phrases into meaningful numerical vectors. This allows the model to understand the semantic relationships between different phrases (e.g., that "Instructions were clear" and "Easy to follow guide" are similar in meaning). This rich representation of text, combined with the other features, leads to more nuanced and accurate predictions.
+    
+    Below, you can explore the model's performance, see the text embeddings in action with a similarity tool, and use the live prediction form to get instant results.
     """)
+    st.divider()
+
+    # --- Functions for Embedding and Model Training ---
+    @st.cache_resource
+    def load_embedding_model():
+        """Loads the SentenceTransformer model and caches it."""
+        return SentenceTransformer('all-MiniLM-L6-v2')
+
+    @st.cache_data
+    def generate_embeddings(_model, sentences):
+        """Generates and caches embeddings for a list of sentences."""
+        return _model.encode(sentences)
 
     @st.cache_resource
-    def train_logistic_regression(df_in):
-        X = df_in.drop('Condition', axis=1)
-        y = df_in['Condition']
-        le_cond = LabelEncoder()
-        y_encoded = le_cond.fit_transform(y)
-        cat_cols = ['Drug', 'Information']
-        num_cols = ['EaseOfUse', 'Effective', 'Satisfaction']
-        encoder = OneHotEncoder(handle_unknown='ignore', sparse_output=False)
-        scaler = StandardScaler()
-        X_cat = encoder.fit_transform(X[cat_cols].astype(str))
-        X_num = scaler.fit_transform(X[num_cols].fillna(0))
-        X_processed = np.hstack([X_num, X_cat])
-        X_train, X_test, y_train, y_test = train_test_split(
-            X_processed, y_encoded, test_size=0.2, random_state=42
-        )
-        model = LogisticRegression(max_iter=1000, solver='lbfgs')
-        model.fit(X_train, y_train)
-        y_pred = model.predict(X_test)
-        results = {
-            "Accuracy": accuracy_score(y_test, y_pred),
-            "Precision": precision_score(y_test, y_pred, average='weighted', zero_division=0),
-            "Recall": recall_score(y_test, y_pred, average='weighted', zero_division=0),
-            "F1 Score": f1_score(y_test, y_pred, average='weighted', zero_division=0)
-        }
-        return model, le_cond, encoder, scaler, results
+    def train_classification_model(df_in, _embedding_model):
+        """Preprocesses data, generates embeddings, trains, and evaluates the model."""
+        with st.spinner("Training classification model... This may take a moment. 🧠"):
+            X = df_in.drop('Condition', axis=1)
+            y = df_in['Condition']
+            
+            # 1. Target Encoding
+            le_cond = LabelEncoder()
+            y_encoded = le_cond.fit_transform(y)
+            
+            # 2. Feature Processing
+            # Numerical features
+            num_cols = ['EaseOfUse', 'Effective', 'Satisfaction']
+            scaler = StandardScaler()
+            X_num = scaler.fit_transform(X[num_cols].fillna(0))
+            
+            # Categorical feature ('Drug')
+            cat_cols = ['Drug']
+            encoder = OneHotEncoder(handle_unknown='ignore', sparse_output=False)
+            X_cat = encoder.fit_transform(X[cat_cols].astype(str))
+            
+            # Text feature ('Information') using embeddings
+            info_embeddings = generate_embeddings(_embedding_model, df_in['Information'].tolist())
+            
+            # 3. Combine processed features
+            X_processed = np.hstack([X_num, X_cat, info_embeddings])
+            
+            # 4. Train/Test Split and Model Training
+            X_train, X_test, y_train, y_test = train_test_split(
+                X_processed, y_encoded, test_size=0.2, random_state=42
+            )
+            model = LogisticRegression(max_iter=1000, solver='lbfgs')
+            model.fit(X_train, y_train)
+            
+            # 5. Evaluation
+            y_pred = model.predict(X_test)
+            results = {
+                "Accuracy": accuracy_score(y_test, y_pred),
+                "Precision": precision_score(y_test, y_pred, average='weighted', zero_division=0),
+                "Recall": recall_score(y_test, y_pred, average='weighted', zero_division=0),
+                "F1 Score": f1_score(y_test, y_pred, average='weighted', zero_division=0),
+                "Embeddings": info_embeddings # Return all embeddings for similarity search
+            }
+            return model, le_cond, encoder, scaler, results
 
-    model, le_cond, encoder, scaler, results = train_logistic_regression(df)
+    # --- Main Page Logic ---
+    embedding_model = load_embedding_model()
+    model, le_cond, encoder, scaler, results = train_classification_model(df, embedding_model)
 
     st.subheader("Model Performance")
     col1, col2, col3, col4 = st.columns(4)
@@ -386,33 +435,76 @@ if page == "🤖 Classification: Predict Condition" and df is not None:
     col2.metric("Precision", f"{results['Precision']*100:.2f}%")
     col3.metric("Recall", f"{results['Recall']*100:.2f}%")
     col4.metric("F1 Score", f"{results['F1 Score']*100:.2f}%")
-
     st.divider()
+
+    # --- Section: Information Similarity Explorer ---
+    st.subheader("Explore 'Information' Similarity")
+    st.info("See how embeddings group similar phrases together. Select a phrase to find its closest matches.")
+    
+    all_info_phrases = df['Information'].unique().tolist()
+    selected_phrase = st.selectbox("Select an information phrase to analyze:", options=all_info_phrases)
+
+    if selected_phrase:
+        phrase_embedding = embedding_model.encode([selected_phrase])
+        all_embeddings = results["Embeddings"]
+        similarities = cosine_similarity(phrase_embedding, all_embeddings)[0]
+        
+        sim_df = pd.DataFrame({
+            'Information': df['Information'],
+            'Similarity': similarities
+        })
+        
+        top_similar = sim_df[sim_df['Information'] != selected_phrase].sort_values(by='Similarity', ascending=False).head(5)
+        
+        st.write(f"**Top 5 most similar phrases to:** *'{selected_phrase}'*")
+        st.dataframe(top_similar, use_container_width=True)
+    st.divider()
+
+    # --- Updated Section: Live Prediction with Dynamic Dropdown ---
     st.subheader("Live Prediction")
     with st.container():
         with st.form("prediction_form"):
             st.markdown("#### Enter Patient Feedback")
-            drug_input = st.selectbox("Select Drug", options=sorted(df['Drug'].unique()))
-            info_input = st.selectbox("Information Provided", options=df['Information'].unique())
-            ease_input = st.slider("Ease of Use", 1, 5, 4)
-            eff_input = st.slider("Effectiveness", 1, 5, 4)
-            sat_input = st.slider("Satisfaction", 1, 5, 4)
+            c1, c2 = st.columns(2)
+            with c1:
+                # Drug selection determines the options for information
+                drug_input = st.selectbox("Select Drug", options=sorted(df['Drug'].unique()))
+                
+                # Filter information options based on the selected drug
+                info_options = df[df['Drug'] == drug_input]['Information'].unique().tolist()
+                info_input = st.selectbox("Information Provided", options=info_options)
+                
+            with c2:
+                ease_input = st.slider("Ease of Use", 1, 5, 4)
+                eff_input = st.slider("Effectiveness", 1, 5, 4)
+                sat_input = st.slider("Satisfaction", 1, 5, 4)
+            
             submitted = st.form_submit_button("Predict", use_container_width=True, type="primary")
 
             if submitted:
-                user_cat = pd.DataFrame([[drug_input, info_input]], columns=['Drug', 'Information'])
+                # Process inputs
+                user_cat = pd.DataFrame([[drug_input]], columns=['Drug'])
                 user_num = pd.DataFrame([[ease_input, eff_input, sat_input]], columns=['EaseOfUse', 'Effective', 'Satisfaction'])
+                
+                # Transform features
                 user_cat_enc = encoder.transform(user_cat)
                 user_num_scl = scaler.transform(user_num)
-                user_features = np.hstack([user_num_scl, user_cat_enc])
+                user_info_emb = embedding_model.encode([info_input])
+                
+                # Combine features in the correct order
+                user_features = np.hstack([user_num_scl, user_cat_enc, user_info_emb])
+                
+                # Make prediction
                 pred_enc = model.predict(user_features)
                 pred_proba = model.predict_proba(user_features).max()
                 predicted_condition = le_cond.inverse_transform(pred_enc)[0]
+                
                 st.success(f"**Predicted Condition:** {predicted_condition}")
                 st.info(f"**Confidence:** {pred_proba*100:.2f}%")
 
     st.markdown("---")
     download_df(df[['Drug','Information','EaseOfUse','Effective','Satisfaction','Condition']], "classification_input_view")
+
 
 # -----------------------------------------------------------------------------
 # Page: Clustering — KMeans on Condition (core logic preserved)
@@ -614,4 +706,3 @@ if page == "🔮 Regression: Performance Prediction" and df is not None:
 # -----------------------------------------------------------------------------
 if df is None and page != "🏠 Overview":
     st.warning("Dataset could not be loaded. Please check your Kaggle credentials/connectivity and try again.")
-
