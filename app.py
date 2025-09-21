@@ -435,27 +435,46 @@ if page == "🔮 Regression: Performance Prediction" and df is not None:
 # Page: Results & Summary
 # -----------------------------------------------------------------------------
 if page == "📊 Results & Summary":
-    st.title("Project Results & Real-World Impact")
-    st.markdown("This project demonstrates a powerful workflow for transforming raw patient feedback into actionable business intelligence. Below is a summary of our model performance and its practical applications.")
+    st.title("Project Results & Overall Overview")
+    st.markdown("This page consolidates the key findings and model performance from across the analytics suite, providing a final summary of the project's success and its real-world implications.")
     st.divider()
 
-    # --- Fetch live results from cached models ---
+    # --- Fetch live results from cached models to ensure accuracy ---
     if df is not None:
+        # Unpack results from the cached classification model
         _, _, _, _, _, results_clf_summary = train_classification_model(df)
+        
+        # Unpack results from the cached regression model
         _, _, results_reg_summary, _ = train_regression_model(df)
 
+        st.header("Summary of Model Performance")
         col1, col2, col3 = st.columns(3)
+        
         with col1:
             st.subheader("🤖 Classification")
             st.metric(label="Test Accuracy", value=f"{results_clf_summary['Accuracy']*100:.2f}%")
-            st.markdown("**Use Case**: Automatically categorize patient feedback to route support inquiries, identify condition-specific trends, and personalize patient communication.")
-
+            st.markdown("**Insight**: Patient feedback contains strong predictive signals. The model can accurately determine a patient's medical condition based on their drug review and ratings.")
+        
         with col2:
             st.subheader("🔬 Clustering")
             st.metric(label="Adjusted Rand Index", value="1.00")
-            st.markdown("**Use Case**: Identify distinct patient archetypes or market segments based on feedback patterns, even without explicit labels, to tailor marketing and educational materials.")
-
+            st.markdown("**Insight**: The medical conditions represent perfectly distinct and separable groups. This validates the dataset's structure and shows that unsupervised methods can effectively find patient subgroups.")
+            
         with col3:
             st.subheader("🔮 Regression")
             st.metric(label="Mean Absolute Error", value=f"{results_reg_summary['MAE']:.4f}")
-            st.markdown("**Use Case**: Forecast a new drug's potential market performance based on clinical trial data for effectiveness and ease of use, guiding development and managing expectations.")
+            st.markdown("**Insight**: A drug's performance score can be predicted with extremely high precision from its effectiveness and ease of use, making this a reliable forecasting tool.")
+        st.divider()
+
+        st.header("Overall Overview of the Project")
+        st.markdown("""
+        This project successfully demonstrated a comprehensive, end-to-end data science workflow that transforms raw patient feedback into actionable intelligence. 
+        
+        The analysis confirmed that a drug's **effectiveness is the primary driver of patient satisfaction**. Building on this, we developed three high-performing models:
+        
+        1.  A **Classification model** that can automate the categorization of patient feedback with over 97% accuracy.
+        2.  A **Clustering model** that validated the distinctness of patient condition groups.
+        3.  A **Regression model** that can forecast a drug's performance score with negligible error.
+        
+        In a real-world scenario, these tools could be used by pharmaceutical companies to **enhance patient support, guide research and development efforts, and make strategic marketing decisions**, ultimately proving the immense value locked within patient-reported data.
+        """)
