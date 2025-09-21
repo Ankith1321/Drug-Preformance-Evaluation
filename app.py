@@ -3,7 +3,7 @@
 # Drug Performance Analytics Suite
 # (Interactive EDA, Classification, Clustering, and Regression)
 #
-# Final version incorporating all user-requested changes for presentation.
+# Final comprehensive version incorporating all user-requested features.
 # -----------------------------------------------------------------------------
 
 import os
@@ -154,17 +154,51 @@ if page == "📈 Exploratory Analysis (EDA)" and df is not None:
     st.pyplot(fig)
     st.divider()
 
-    # --- Scatter Plot Added ---
-    st.header("Relationship Deep-Dive: Effectiveness vs. Satisfaction")
-    st.markdown("As suggested by the correlation matrix, let's visualize the strongest relationship.")
-    fig, ax = plt.subplots()
-    sns.regplot(data=df, x="Effective", y="Satisfaction", ax=ax, line_kws={"color": "red"}, scatter_kws={'alpha':0.3})
+    st.header("Correlation Heatmap")
+    fig, ax = plt.subplots(figsize=(8, 6)) # Adjusted size
+    corr = df.select_dtypes(include="number").corr(numeric_only=True)
+    sns.heatmap(corr, annot=True, cmap="coolwarm", fmt=".2f", ax=ax)
     st.pyplot(fig)
     st.divider()
+    
+    # --- Scatter Plots Added Below Correlation ---
+    st.header("Key Relationships (Scatter Plots)")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.subheader("Effective vs. Satisfaction")
+        fig, ax = plt.subplots(figsize=(7, 5))
+        sns.regplot(data=df, x="Effective", y="Satisfaction", ax=ax, line_kws={"color": "red"}, scatter_kws={'alpha':0.3})
+        st.pyplot(fig)
 
-    # --- Pair Plot Added ---
-    st.header("360° View of All Numeric Features")
-    with st.expander("Show Pair Plot"):
+    with col2:
+        st.subheader("Effective vs. Ease of Use")
+        fig, ax = plt.subplots(figsize=(7, 5))
+        sns.regplot(data=df, x="Effective", y="EaseOfUse", ax=ax, line_kws={"color": "green"}, scatter_kws={'alpha':0.3})
+        st.pyplot(fig)
+    st.divider()
+
+
+    st.header("Metric Deep-Dive by Category")
+    cols_to_analyze = ["Effective", "Satisfaction", "EaseOfUse"]
+    tab1, tab2, tab3 = st.tabs([f"📊 {col}" for col in cols_to_analyze])
+    tabs_dict = {"Effective": tab1, "Satisfaction": tab2, "EaseOfUse": tab3}
+    for col, tab in tabs_dict.items():
+        with tab:
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown("**Box Plot**")
+                fig_b, ax_b = plt.subplots()
+                sns.boxplot(y=df[col], ax=ax_b, color='lightblue')
+                st.pyplot(fig_b)
+            with c2:
+                # --- Violin Plot Axis Changed ---
+                st.markdown("**Violin Plot (Horizontal)**")
+                fig_v, ax_v = plt.subplots()
+                sns.violinplot(data=df, x=col, inner="quartile", color='lightgreen')
+                st.pyplot(fig_v)
+    st.divider()
+
+    with st.expander("Show 360° Pair Plot of All Numeric Features"):
         st.markdown("A pair plot provides a comprehensive view of how every numeric variable relates to every other one.")
         df_sample = df.sample(n=min(500, len(df)), random_state=42)
         g = sns.pairplot(df_sample.select_dtypes(include='number'))
@@ -175,7 +209,7 @@ if page == "📈 Exploratory Analysis (EDA)" and df is not None:
 # -----------------------------------------------------------------------------
 if page == "🤖 Classification: Predict Condition" and df is not None:
     st.title("Classification: Predict Medical Condition")
-    st.markdown("The goal here is to predict a patient's **Condition** using their drug feedback. This supervised learning model helps categorize feedback automatically and provides insights into condition-specific drug performance.")
+    st.markdown("This model predicts a patient's **Condition** using their drug feedback. This is a supervised learning problem where we train a **Logistic Regression** model on labeled data.")
     st.divider()
 
     @st.cache_resource
@@ -198,13 +232,27 @@ if page == "🤖 Classification: Predict Condition" and df is not None:
         model = LogisticRegression(max_iter=1000, solver='lbfgs')
         model.fit(X_train, y_train)
         y_pred = model.predict(X_test)
-        results = {"Accuracy": accuracy_score(y_test, y_pred)}
+        results = {"Accuracy": accuracy_score(y_test, y_pred), "Precision": precision_score(y_test, y_pred, average='weighted', zero_division=0), "Recall": recall_score(y_test, y_pred, average='weighted', zero_division=0), "F1 Score": f1_score(y_test, y_pred, average='weighted', zero_division=0)}
         return model, le_cond, encoder, scaler, embedding_model, results
 
-    model, le_cond, encoder, scaler, embedding_model, results = train_classification_model(df)
+    model, le_cond, encoder, scaler, embedding_model, results_clf = train_classification_model(df)
+
+    st.subheader("Data Preview")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("**Initial Data**")
+        st.dataframe(df.head(), use_container_width=True)
+    with col2:
+        st.markdown("**Features Selected for Modeling**")
+        st.dataframe(df[['Drug', 'Information', 'EaseOfUse', 'Effective', 'Satisfaction']].head(), use_container_width=True)
+    st.divider()
     
-    st.subheader("Model Performance")
-    st.metric("Accuracy", f"{results['Accuracy']*100:.2f}%")
+    st.subheader("Model Performance Metrics")
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Accuracy", f"{results_clf['Accuracy']*100:.2f}%")
+    col2.metric("Precision", f"{results_clf['Precision']:.2f}")
+    col3.metric("Recall", f"{results_clf['Recall']:.2f}")
+    col4.metric("F1 Score", f"{results_clf['F1 Score']:.2f}")
     st.divider()
 
     st.subheader("Live Prediction Tool")
@@ -232,69 +280,82 @@ if page == "🤖 Classification: Predict Condition" and df is not None:
 # -----------------------------------------------------------------------------
 if page == "🔬 Clustering: Group by Condition" and df is not None:
     st.title("Clustering: Grouping by Condition")
-    st.markdown("This unsupervised learning task uses K-Means to find natural groupings in the data. Here, we validate the method on the known 'Condition' labels.")
     st.divider()
 
+    st.subheader("Data Preview")
     df_processed = df.copy()
     X_condition_encoded = pd.get_dummies(df_processed[['Condition']])
     num_unique_conditions = len(X_condition_encoded.columns)
     kmeans = KMeans(n_clusters=num_unique_conditions, random_state=42, n_init='auto')
     y_pred_clusters = kmeans.fit_predict(X_condition_encoded)
+    df_processed['Cluster'] = y_pred_clusters
     
-    st.subheader("Clustering Performance")
-    ari = adjusted_rand_score(df_processed['Condition'], y_pred_clusters)
-    st.metric("Adjusted Rand Index (ARI)", f"{ari:.2f}", help="Measures similarity between true and predicted clusters. 1.0 is a perfect match.")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("**Initial Data**")
+        st.dataframe(df.head(), use_container_width=True)
+    with col2:
+        st.markdown("**Data with Cluster Labels**")
+        st.dataframe(df_processed[['Condition', 'Cluster']].head(), use_container_width=True)
     st.divider()
 
-    st.subheader("Live Prediction Tool")
-    unique_conditions = sorted(df['Condition'].unique())
-    selected_condition = st.selectbox('Select a Condition to find its cluster:', unique_conditions)
-    if st.button('Predict Cluster'):
-        cluster_num = df_processed[df_processed['Condition'] == selected_condition]['Cluster'].iloc[0]
-        st.success(f"The predicted cluster for **'{selected_condition}'** is **Cluster {cluster_num}**.")
+    st.subheader("Clustering Performance Metrics")
+    y_true_labels = df_processed['Condition']
+    ari = adjusted_rand_score(y_true_labels, y_pred_clusters)
+    nmi = normalized_mutual_info_score(y_true_labels, y_pred_clusters)
+    sil_score = silhouette_score(X_condition_encoded, y_pred_clusters)
+    db_score = davies_bouldin_score(X_condition_encoded, y_pred_clusters)
+    
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Adjusted Rand", f"{ari:.2f}")
+    c2.metric("NMI", f"{nmi:.2f}")
+    c3.metric("Silhouette Score", f"{sil_score:.2f}")
+    c4.metric("Davies-Bouldin", f"{db_score:.2f}")
 
 # -----------------------------------------------------------------------------
 # Page: Regression
 # -----------------------------------------------------------------------------
 if page == "🔮 Regression: Performance Prediction" and df is not None:
     st.title("Regression: Predict Performance Score")
-    st.markdown("This model predicts a composite **performance score** based on 'Effectiveness' and 'Ease of Use'. This can help forecast patient perception of a drug.")
-    st.divider()
-    
-    # --- Data Preview Added ---
-    st.subheader("Initial Data")
-    st.dataframe(df.head(), use_container_width=True)
-
-    df_initial = df.copy()
-    columns_to_drop = ['Indication', 'Type', 'Information', 'Reviews']
-    df_processed = df_initial.drop(columns=columns_to_drop)
-    df_encoded = df_processed.copy()
-    
-    categorical_cols = ['Drug', 'Condition']
-    encoders = {}
-    for col in categorical_cols:
-        le = LabelEncoder()
-        df_encoded[col] = le.fit_transform(df_encoded[col])
-        encoders[col] = le
-    
-    weight_effective = 0.7
-    df_encoded['performance'] = (weight_effective * df_encoded['Effective']) + ((1.0 - weight_effective) * df_encoded['EaseOfUse'])
-    
-    st.subheader("Processed Data for Modeling")
-    st.dataframe(df_encoded.head(), use_container_width=True)
+    st.markdown("This model predicts a composite **performance score** based on 'Effectiveness' and 'Ease of Use'.")
     st.divider()
 
-    X = df_encoded[['Drug', 'Condition', 'Effective', 'EaseOfUse']]
-    y = df_encoded['performance']
-    x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    @st.cache_resource
+    def train_regression_model(df_in):
+        df_processed = df_in.drop(columns=['Indication', 'Type', 'Information', 'Reviews']).copy()
+        df_encoded = df_processed.copy()
+        encoders = {}
+        for col in ['Drug', 'Condition']:
+            le = LabelEncoder()
+            df_encoded[col] = le.fit_transform(df_encoded[col])
+            encoders[col] = le
+        weight_effective = 0.7
+        df_encoded['performance'] = (weight_effective * df_encoded['Effective']) + ((1.0 - weight_effective) * df_encoded['EaseOfUse'])
+        X = df_encoded[['Drug', 'Condition', 'Effective', 'EaseOfUse']]
+        y = df_encoded['performance']
+        x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        gb_model = GradientBoostingRegressor(n_estimators=100, random_state=42)
+        gb_model.fit(x_train, y_train)
+        y_pred_gb = gb_model.predict(x_test)
+        results = {"MAE": mean_absolute_error(y_test, y_pred_gb), "MSE": mean_squared_error(y_test, y_pred_gb)}
+        return gb_model, encoders, results, df_encoded
 
-    gb_model = GradientBoostingRegressor(n_estimators=100, random_state=42)
-    gb_model.fit(x_train, y_train)
+    gb_model, encoders, results_reg, df_encoded_reg = train_regression_model(df)
+
+    st.subheader("Data Preview")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("**Initial Data**")
+        st.dataframe(df.head(), use_container_width=True)
+    with col2:
+        st.markdown("**Processed Data for Modeling**")
+        st.dataframe(df_encoded_reg.head(), use_container_width=True)
+    st.divider()
     
-    st.subheader("Model Performance")
-    y_pred_gb = gb_model.predict(x_test)
-    mae_gb = mean_absolute_error(y_test, y_pred_gb)
-    st.metric("Mean Absolute Error (MAE)", f"{mae_gb:.4f}", help="The average absolute difference between predicted and actual values. Lower is better.")
+    st.subheader("Model Performance Metrics")
+    m_col1, m_col2 = st.columns(2)
+    m_col1.metric("Mean Absolute Error (MAE)", f"{results_reg['MAE']:.4f}")
+    m_col2.metric("Mean Squared Error (MSE)", f"{results_reg['MSE']:.4f}")
     st.divider()
 
     st.subheader("Live Prediction Tool")
@@ -323,30 +384,27 @@ if page == "📊 Results & Summary":
     st.title("Project Results & Real-World Impact")
     st.markdown("This project demonstrates a powerful workflow for transforming raw patient feedback into actionable business intelligence. Below is a summary of our model performance and its practical applications.")
     st.divider()
-    
-    # --- Results Overview (Redesigned) ---
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.subheader("🤖 Classification")
-        st.metric(label="Test Accuracy", value="97.58%")
-        st.markdown("**Use Case**: Automatically categorize patient feedback to route support inquiries, identify condition-specific trends, and personalize patient communication.")
-    
-    with col2:
-        st.subheader("🔬 Clustering")
-        st.metric(label="Adjusted Rand Index", value="1.00")
-        st.markdown("**Use Case**: Identify distinct patient archetypes or market segments based on feedback patterns, even without explicit labels, to tailor marketing and educational materials.")
+
+    # --- Fetch live results from cached models ---
+    if df is not None:
+        _, _, _, _, _, results_clf_summary = train_classification_model(df)
+        _, _, results_reg_summary, _ = train_regression_model(df)
+
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.subheader("🤖 Classification")
+            st.metric(label="Test Accuracy", value=f"{results_clf_summary['Accuracy']*100:.2f}%")
+            st.markdown("**Use Case**: Automatically categorize patient feedback to route support inquiries, identify condition-specific trends, and personalize patient communication.")
         
-    with col3:
-        st.subheader("🔮 Regression")
-        st.metric(label="Mean Absolute Error", value="0.1064")
-        st.markdown("**Use Case**: Forecast a new drug's potential market performance based on clinical trial data for effectiveness and ease of use, guiding development and managing expectations.")
-    
-    st.divider()
-
-    st.header("Project Conclusion")
-    st.markdown("The high performance across all three models confirms that patient-reported data is a highly valuable asset. By applying a range of machine learning techniques, we can build tools that not only predict outcomes with high accuracy but also provide a strategic advantage in the pharmaceutical and healthcare industries.")
-
+        with col2:
+            st.subheader("🔬 Clustering")
+            st.metric(label="Adjusted Rand Index", value="1.00")
+            st.markdown("**Use Case**: Identify distinct patient archetypes or market segments based on feedback patterns, even without explicit labels, to tailor marketing and educational materials.")
+            
+        with col3:
+            st.subheader("🔮 Regression")
+            st.metric(label="Mean Absolute Error", value=f"{results_reg_summary['MAE']:.4f}")
+            st.markdown("**Use Case**: Forecast a new drug's potential market performance based on clinical trial data for effectiveness and ease of use, guiding development and managing expectations.")
 
 # -----------------------------------------------------------------------------
 # Fallback
