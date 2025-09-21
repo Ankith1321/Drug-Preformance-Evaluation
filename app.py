@@ -241,21 +241,24 @@ if page == "🤖 Classification: Predict Condition" and df is not None:
     model, le_cond, encoder, scaler, embedding_model, results_clf = train_classification_model(df)
 
     st.subheader("Data Preview")
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown("**Initial Data**")
-        st.dataframe(df.head(), use_container_width=True)
-    with col2:
-        st.markdown("**Features Selected for Modeling**")
-        st.dataframe(df[['Drug', 'Information', 'EaseOfUse', 'Effective', 'Satisfaction']].head(), use_container_width=True)
+
+    # --- Tables are now vertical with explanations ---
+    st.markdown("**1. Initial Raw Data**")
+    st.markdown("This table shows the original, untouched data as loaded from the source file. It includes all columns available for analysis.")
+    st.dataframe(df.head(), use_container_width=True)
+
+    st.markdown("**2. Features Selected for Modeling**")
+    st.markdown("This table displays the specific columns that are used as input features (predictors) for the model. The 'Condition' column is separated as the target variable we want to predict.")
+    st.dataframe(df[['Drug', 'Information', 'EaseOfUse', 'Effective', 'Satisfaction']].head(), use_container_width=True)
     st.divider()
     
     st.subheader("Model Performance Metrics")
     col1, col2, col3, col4 = st.columns(4)
+    # --- All metrics converted to percentage format ---
     col1.metric("Accuracy", f"{results_clf['Accuracy']*100:.2f}%")
-    col2.metric("Precision", f"{results_clf['Precision']:.2f}")
-    col3.metric("Recall", f"{results_clf['Recall']:.2f}")
-    col4.metric("F1 Score", f"{results_clf['F1 Score']:.2f}")
+    col2.metric("Precision", f"{results_clf['Precision']*100:.2f}%")
+    col3.metric("Recall", f"{results_clf['Recall']*100:.2f}%")
+    col4.metric("F1 Score", f"{results_clf['F1 Score']*100:.2f}%")
     st.divider()
 
     st.subheader("Live Prediction Tool")
