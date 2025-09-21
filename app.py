@@ -141,10 +141,13 @@ if page == "🏠 Overview":
 # -----------------------------------------------------------------------------
 if page == "📈 Exploratory Analysis (EDA)" and df is not None:
     st.title("Exploratory Data Analysis 💊")
-    st.markdown("Understanding the relationships and distributions within the patient feedback data.")
+    st.markdown("""
+    Welcome to the Exploratory Data Analysis (EDA) section. EDA is the crucial first step in any data science project. Here, we'll visually inspect the data to understand its underlying patterns, identify relationships between variables, spot anomalies, and form hypotheses that will guide our modeling efforts.
+    """)
     st.divider()
 
     st.header("Rating Distributions 📈")
+    st.markdown("First, let's look at the distribution of the core patient ratings: **Effectiveness, Satisfaction, and Ease of Use**. These histograms show the frequency of each rating score, helping us understand the overall sentiment and spread of opinions.")
     numeric_df = df.select_dtypes(include="number")
     fig, axes = plt.subplots(1, 3, figsize=(15, 5))
     for i, col in enumerate(numeric_df.columns[:3]):
@@ -155,14 +158,16 @@ if page == "📈 Exploratory Analysis (EDA)" and df is not None:
     st.divider()
 
     st.header("Correlation Heatmap")
-    fig, ax = plt.subplots(figsize=(8, 6)) # Adjusted size
+    st.markdown("A correlation heatmap is a powerful tool to quickly visualize the strength and direction of relationships between numeric variables. Values close to 1.0 (dark red) indicate a strong positive correlation, while values close to -1.0 (dark blue) indicate a strong negative one.")
+    # --- Heatmap size reduced ---
+    fig, ax = plt.subplots(figsize=(7, 5)) 
     corr = df.select_dtypes(include="number").corr(numeric_only=True)
     sns.heatmap(corr, annot=True, cmap="coolwarm", fmt=".2f", ax=ax)
     st.pyplot(fig)
     st.divider()
     
-    # --- Scatter Plots Added Below Correlation ---
     st.header("Key Relationships (Scatter Plots)")
+    st.markdown("Based on the heatmap, the strongest relationships appear to be with **Effectiveness**. Let's use scatter plots to look closer at how it influences **Satisfaction** and **Ease of Use**.")
     col1, col2 = st.columns(2)
     with col1:
         st.subheader("Effective vs. Satisfaction")
@@ -177,8 +182,8 @@ if page == "📈 Exploratory Analysis (EDA)" and df is not None:
         st.pyplot(fig)
     st.divider()
 
-
     st.header("Metric Deep-Dive by Category")
+    st.markdown("Box plots and violin plots help us understand the distribution, spread (interquartile range), and median of each rating category in more detail.")
     cols_to_analyze = ["Effective", "Satisfaction", "EaseOfUse"]
     tab1, tab2, tab3 = st.tabs([f"📊 {col}" for col in cols_to_analyze])
     tabs_dict = {"Effective": tab1, "Satisfaction": tab2, "EaseOfUse": tab3}
@@ -191,7 +196,6 @@ if page == "📈 Exploratory Analysis (EDA)" and df is not None:
                 sns.boxplot(y=df[col], ax=ax_b, color='lightblue')
                 st.pyplot(fig_b)
             with c2:
-                # --- Violin Plot Axis Changed ---
                 st.markdown("**Violin Plot (Horizontal)**")
                 fig_v, ax_v = plt.subplots()
                 sns.violinplot(data=df, x=col, inner="quartile", color='lightgreen')
@@ -199,11 +203,10 @@ if page == "📈 Exploratory Analysis (EDA)" and df is not None:
     st.divider()
 
     with st.expander("Show 360° Pair Plot of All Numeric Features"):
-        st.markdown("A pair plot provides a comprehensive view of how every numeric variable relates to every other one.")
+        st.markdown("Finally, a pair plot gives us a comprehensive matrix of scatter plots for every pair of numeric variables, with histograms on the diagonal. It's a great way to spot all potential relationships at a glance.")
         df_sample = df.sample(n=min(500, len(df)), random_state=42)
         g = sns.pairplot(df_sample.select_dtypes(include='number'))
         st.pyplot(g.fig)
-
 # -----------------------------------------------------------------------------
 # Page: Classification
 # -----------------------------------------------------------------------------
