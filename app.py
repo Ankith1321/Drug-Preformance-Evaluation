@@ -115,6 +115,49 @@ def load_data():
 
 df = load_data()
 
+@st.cache_resource
+def train_classification_model(df_in):
+        embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+        X = df_in.drop('Condition', axis=1)
+        y = df_in['Condition']
+        le_cond = LabelEncoder()
+        y_encoded = le_cond.fit_transform(y)
+        num_cols = ['EaseOfUse', 'Effective', 'Satisfaction']
+        scaler = StandardScaler()
+        X_num = scaler.fit_transform(X[num_cols].fillna(0))
+        cat_cols = ['Drug']
+        encoder = OneHotEncoder(handle_unknown='ignore', sparse_output=False)
+        X_cat = encoder.fit_transform(X[cat_cols].astype(str))
+        info_embeddings = embedding_model.encode(df_in['Information'].tolist())
+        X_processed = np.hstack([X_num, X_cat, info_embeddings])
+        X_train, X_test, y_train, y_test = train_test_split(
+            X_processed, y_encoded, test_size=0.2, random_state=42)
+        model = LogisticRegression(max_iter=1000, solver='lbfgs')
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
+        results = {"Accuracy": accuracy_score(y_test, y_pred), "Precision": precision_score(y_test, y_pred, average='weighted', zero_division=0), "Recall": recall_score(y_test, y_pred, average='weighted', zero_division=0), "F1 Score": f1_score(y_test, y_pred, average='weighted', zero_division=0)}
+        return model, le_cond, encoder, scaler, embedding_model, results    
+
+@st.cache_resource
+def train_regression_model(df_in):
+        df_processed = df_in.drop(columns=['Indication', 'Type', 'Information', 'Reviews']).copy()
+        df_encoded = df_processed.copy()
+        encoders = {}
+        for col in ['Drug', 'Condition']:
+            le = LabelEncoder()
+            df_encoded[col] = le.fit_transform(df_encoded[col])
+            encoders[col] = le
+        weight_effective = 0.7
+        df_encoded['performance'] = (weight_effective * df_encoded['Effective']) + ((1.0 - weight_effective) * df_encoded['EaseOfUse'])
+        X = df_encoded[['Drug', 'Condition', 'Effective', 'EaseOfUse']]
+        y = df_encoded['performance']
+        x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        gb_model = GradientBoostingRegressor(n_estimators=100, random_state=42)
+        gb_model.fit(x_train, y_train)
+        y_pred_gb = gb_model.predict(x_test)
+        results = {"MAE": mean_absolute_error(y_test, y_pred_gb), "MSE": mean_squared_error(y_test, y_pred_gb)}
+        return gb_model, encoders, results, df_encoded
+
 # -----------------------------------------------------------------------------
 # Page: Overview
 # -----------------------------------------------------------------------------
@@ -215,28 +258,7 @@ if page == "🤖 Classification: Predict Condition" and df is not None:
     st.markdown("This model predicts a patient's **Condition** using their drug feedback. This is a supervised learning problem where we train a **Logistic Regression** model on labeled data.")
     st.divider()
 
-    @st.cache_resource
-    def train_classification_model(df_in):
-        embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
-        X = df_in.drop('Condition', axis=1)
-        y = df_in['Condition']
-        le_cond = LabelEncoder()
-        y_encoded = le_cond.fit_transform(y)
-        num_cols = ['EaseOfUse', 'Effective', 'Satisfaction']
-        scaler = StandardScaler()
-        X_num = scaler.fit_transform(X[num_cols].fillna(0))
-        cat_cols = ['Drug']
-        encoder = OneHotEncoder(handle_unknown='ignore', sparse_output=False)
-        X_cat = encoder.fit_transform(X[cat_cols].astype(str))
-        info_embeddings = embedding_model.encode(df_in['Information'].tolist())
-        X_processed = np.hstack([X_num, X_cat, info_embeddings])
-        X_train, X_test, y_train, y_test = train_test_split(
-            X_processed, y_encoded, test_size=0.2, random_state=42)
-        model = LogisticRegression(max_iter=1000, solver='lbfgs')
-        model.fit(X_train, y_train)
-        y_pred = model.predict(X_test)
-        results = {"Accuracy": accuracy_score(y_test, y_pred), "Precision": precision_score(y_test, y_pred, average='weighted', zero_division=0), "Recall": recall_score(y_test, y_pred, average='weighted', zero_division=0), "F1 Score": f1_score(y_test, y_pred, average='weighted', zero_division=0)}
-        return model, le_cond, encoder, scaler, embedding_model, results
+
 
     model, le_cond, encoder, scaler, embedding_model, results_clf = train_classification_model(df)
 
@@ -363,25 +385,6 @@ if page == "🔮 Regression: Performance Prediction" and df is not None:
     """)
     st.divider()
 
-    @st.cache_resource
-    def train_regression_model(df_in):
-        df_processed = df_in.drop(columns=['Indication', 'Type', 'Information', 'Reviews']).copy()
-        df_encoded = df_processed.copy()
-        encoders = {}
-        for col in ['Drug', 'Condition']:
-            le = LabelEncoder()
-            df_encoded[col] = le.fit_transform(df_encoded[col])
-            encoders[col] = le
-        weight_effective = 0.7
-        df_encoded['performance'] = (weight_effective * df_encoded['Effective']) + ((1.0 - weight_effective) * df_encoded['EaseOfUse'])
-        X = df_encoded[['Drug', 'Condition', 'Effective', 'EaseOfUse']]
-        y = df_encoded['performance']
-        x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-        gb_model = GradientBoostingRegressor(n_estimators=100, random_state=42)
-        gb_model.fit(x_train, y_train)
-        y_pred_gb = gb_model.predict(x_test)
-        results = {"MAE": mean_absolute_error(y_test, y_pred_gb), "MSE": mean_squared_error(y_test, y_pred_gb)}
-        return gb_model, encoders, results, df_encoded
 
     gb_model, encoders, results_reg, df_encoded_reg = train_regression_model(df)
 
