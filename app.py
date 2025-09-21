@@ -160,7 +160,7 @@ if page == "📈 Exploratory Analysis (EDA)" and df is not None:
     st.header("Correlation Heatmap")
     st.markdown("A correlation heatmap is a powerful tool to quickly visualize the strength and direction of relationships between numeric variables. Values close to 1.0 (dark red) indicate a strong positive correlation, while values close to -1.0 (dark blue) indicate a strong negative one.")
     # --- Heatmap size reduced ---
-    fig, ax = plt.subplots(figsize=(7, 5)) 
+    fig, ax = plt.subplots(figsize=(4, 3)) 
     corr = df.select_dtypes(include="number").corr(numeric_only=True)
     sns.heatmap(corr, annot=True, cmap="coolwarm", fmt=".2f", ax=ax)
     st.pyplot(fig)
