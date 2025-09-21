@@ -475,7 +475,7 @@ if page == "📊 Results & Summary":
         
         The analysis confirmed that a drug's **effectiveness is the primary driver of patient satisfaction**. Building on this, we developed three high-performing models:
         
-        1.  A **Classification model** that can automate the categorization of patient feedback with over 97% accuracy.
+        1.  A **Classification model** that can automate the categorization of patient feedback with over 69% accuracy.
         2.  A **Clustering model** that validated the distinctness of patient condition groups.
         3.  A **Regression model** that can forecast a drug's performance score with negligible error.
         
