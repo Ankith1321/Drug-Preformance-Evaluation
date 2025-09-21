@@ -1,4 +1,3 @@
-
 # app.py
 # -----------------------------------------------------------------------------
 # Drug Performance Analytics Suite
@@ -203,8 +202,7 @@ if page == "🏠 Overview":
         """
         Explore end-to-end workflows:
         - **Exploratory Data Analysis** for understanding the data  
-        - **Classification** to predict *Condition*
-        - **Clustering** to map *Condition* groups  
+        - **Classification** to predict *Condition* - **Clustering** to map *Condition* groups  
         - **Regression** to predict a composite *performance* score
         
         The layout, color palette, and typography are tuned for comfortable reading with a calm background image that stays subtle.
@@ -347,28 +345,16 @@ if page == "📈 Exploratory Analysis (EDA)" and df is not None:
     download_df(df_eda, "eda_filtered_data")
 
 # -----------------------------------------------------------------------------
-# Page: Classification — Predict Condition (LOGIC UPDATED)
+# Page: Classification — Predict Condition (LOGIC UPDATED WITH EMBEDDINGS)
 # -----------------------------------------------------------------------------
 if page == "🤖 Classification: Predict Condition" and df is not None:
     st.title("Predicting the Condition with Text Embeddings")
-    
-    # --- New, Detailed Overview ---
     st.markdown("""
-    ### Overview of the Classification Task
-    
-    The primary goal of this section is to predict a patient's medical **Condition** based on their feedback about a drug. We use a **Logistic Regression** model trained on a combination of user-provided data:
-    
-    - **Numerical Ratings**: Scores for 'Ease of Use', 'Effective', and 'Satisfaction'.
-    - **Categorical Data**: The specific 'Drug' used.
-    - **Text Data**: The 'Information' provided alongside the drug.
-    
-    A key feature of this model is its use of **Sentence Embeddings** to process the 'Information' text. Instead of treating text as simple categories, this advanced technique converts phrases into meaningful numerical vectors. This allows the model to understand the semantic relationships between different phrases (e.g., that "Instructions were clear" and "Easy to follow guide" are similar in meaning). This rich representation of text, combined with the other features, leads to more nuanced and accurate predictions.
-    
-    Below, you can explore the model's performance, see the text embeddings in action with a similarity tool, and use the live prediction form to get instant results.
+    This model uses **text embeddings** for the 'Information' column to capture its semantic meaning. 
+    It combines these embeddings with scaled numerical features and one-hot encoded drug data to train a Logistic Regression classifier.
     """)
-    st.divider()
 
-    # --- Functions for Embedding and Model Training ---
+    # --- New Functions for Embedding and Model Training ---
     @st.cache_resource
     def load_embedding_model():
         """Loads the SentenceTransformer model and caches it."""
@@ -437,7 +423,7 @@ if page == "🤖 Classification: Predict Condition" and df is not None:
     col4.metric("F1 Score", f"{results['F1 Score']*100:.2f}%")
     st.divider()
 
-    # --- Section: Information Similarity Explorer ---
+    # --- New Section: Information Similarity Explorer ---
     st.subheader("Explore 'Information' Similarity")
     st.info("See how embeddings group similar phrases together. Select a phrase to find its closest matches.")
     
@@ -445,35 +431,35 @@ if page == "🤖 Classification: Predict Condition" and df is not None:
     selected_phrase = st.selectbox("Select an information phrase to analyze:", options=all_info_phrases)
 
     if selected_phrase:
+        # Get the embedding for the selected phrase
         phrase_embedding = embedding_model.encode([selected_phrase])
+        
+        # Calculate cosine similarity against all other embeddings
         all_embeddings = results["Embeddings"]
         similarities = cosine_similarity(phrase_embedding, all_embeddings)[0]
         
+        # Create a dataframe for display
         sim_df = pd.DataFrame({
             'Information': df['Information'],
             'Similarity': similarities
         })
         
+        # Remove the original phrase itself and show top 5 matches
         top_similar = sim_df[sim_df['Information'] != selected_phrase].sort_values(by='Similarity', ascending=False).head(5)
         
         st.write(f"**Top 5 most similar phrases to:** *'{selected_phrase}'*")
         st.dataframe(top_similar, use_container_width=True)
     st.divider()
 
-    # --- Updated Section: Live Prediction with Dynamic Dropdown ---
+    # --- Updated Section: Live Prediction ---
     st.subheader("Live Prediction")
     with st.container():
         with st.form("prediction_form"):
             st.markdown("#### Enter Patient Feedback")
             c1, c2 = st.columns(2)
             with c1:
-                # Drug selection determines the options for information
                 drug_input = st.selectbox("Select Drug", options=sorted(df['Drug'].unique()))
-                
-                # Filter information options based on the selected drug
-                info_options = df[df['Drug'] == drug_input]['Information'].unique().tolist()
-                info_input = st.selectbox("Information Provided", options=info_options)
-                
+                info_input = st.text_input("Information Provided", value="No information provided")
             with c2:
                 ease_input = st.slider("Ease of Use", 1, 5, 4)
                 eff_input = st.slider("Effectiveness", 1, 5, 4)
@@ -705,4 +691,4 @@ if page == "🔮 Regression: Performance Prediction" and df is not None:
 # Fallback
 # -----------------------------------------------------------------------------
 if df is None and page != "🏠 Overview":
-    st.warning("Dataset could not be loaded. Please check your Kaggle credentials/connectivity and try again.")
+    st.warning("Dataset could not be loaded. Please check your Kaggle credentials/connectivity and try again.") 
